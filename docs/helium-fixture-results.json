@@ -1,0 +1,48 @@
+{
+  "scope": "Real Helium UI, IndexedDB, folder writes, checksums, and locking; synthetic API/session responses",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+  "assertions": [
+    {
+      "label": "real folder handle and granted read/write access",
+      "passed": true
+    },
+    {
+      "label": "runtime.getContexts works in Helium",
+      "passed": true
+    },
+    {
+      "label": "course checkbox selects discovered descendants",
+      "passed": true
+    },
+    {
+      "label": "individual deselection leaves course and module mixed",
+      "passed": true
+    },
+    {
+      "label": "full-tab job saves selected original and offline HTML",
+      "passed": true
+    },
+    {
+      "label": "original file read-back uses real filesystem and exact bytes",
+      "passed": true
+    },
+    {
+      "label": "second run checks disk and skips verified unchanged files",
+      "passed": true
+    },
+    {
+      "label": "only selected original file was fetched",
+      "passed": true
+    },
+    {
+      "label": "native createWritable abort preserves an existing good copy",
+      "passed": true
+    },
+    {
+      "label": "native IndexedDB round-trips a real directory handle",
+      "passed": true
+    }
+  ],
+  "testDate": "2026-10-12",
+  "browser": "Helium 0.17.2.1 (Chromium 153.0.8010.52)"
+}

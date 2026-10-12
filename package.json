@@ -1,0 +1,14 @@
+{
+  "name": "calpoly-canvas-local-archive",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local MV3 Canvas archive; no runtime npm dependencies",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check.mjs",
+    "test:browser:prepare": "node scripts/prepare-browser-test.mjs"
+  },
+  "devDependencies": { "linkedom": "0.18.12" }
+}

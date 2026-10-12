@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Local Archive",
+  "version": "1.0.0",
+  "description": "Select Canvas materials and save them in a real folder for each course.",
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://canvas.calpoly.edu/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "script/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Canvas Local Archive"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuKRGqJiCm8jReyN95CpU5MAv4tNTxSOeU6bzGD92vw9+WJWgcns+mSiFyjjZrYlaM5pp538tUURCAZXREUXs/zeNi8KtiDGjj2GWq9qqIImJj4dr57MCY6nKmFw3qW4Em3NEdJz7JYmXM7MGAV0oaOsug96sq5BwsbAKvO9BecR9jUpHh0MONtcPYXak+iTkHPC0NxFNg1rdiWDQeVJTpJH1aALljNK/57+lquKwlrltPlE8ntHsfrvXTSpkzSuBRGG7jILw2o0aQ8o/a//cRuJy6V5taH5KS29GKDJH+/beNl0iEbMNMylQjG8Ex1hwD25z08GCVfUjPkZJvm+HNwIDAQAB"
+}

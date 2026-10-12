@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const output = path.resolve('.local/browser-fixture');
+fs.mkdirSync(output,{recursive:true});
+fs.cpSync('extension',output,{recursive:true});
+fs.mkdirSync(path.join(output,'test'),{recursive:true});
+const fixtures = fs.readFileSync('tests/fixtures.js','utf8').replace('../extension/script/canvas.js','../script/canvas.js');
+fs.writeFileSync(path.join(output,'test/fixtures.js'),fixtures);
+fs.copyFileSync('tests/browser-main.js',path.join(output,'script/main.js'));
+const manifest = JSON.parse(fs.readFileSync(path.join(output,'manifest.json')));
+manifest.name = '[FIXTURE TEST] Canvas Local Archive';
+fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+console.log(`Prepared ${output}. Use ONLY in a separate test profile; it shares the production public key. All Canvas responses are synthetic. No server or Playwright is used.`);

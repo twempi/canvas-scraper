@@ -1,0 +1,19 @@
+node_modules/
+.local/
+.superdesign/
+coverage/
+*.log
+*.part
+*.tmp
+__pycache__/
+.venv/
+Canvas-Materials/
+download-index.json
+download-report.json
+.canvas-archive/
+reports/
+# Never commit browser profiles, personal fixtures, or exported course content.
+*.har
+*.crx
+*.pem
+
