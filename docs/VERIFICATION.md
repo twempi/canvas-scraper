@@ -1,6 +1,6 @@
 # Verification record
 
-Test date: **2026-10-12**. Installed browser reports **Helium 0.17.2.1 (Chromium 153.0.8010.52)** on NixOS/Linux. The extension is unpacked MV3. No real account material was placed in fixtures or committed output.
+Test date: **2026-10-12**. Installed browser reports **Helium 0.17.2.1 (Chromium 153.0.8010.52)** on NixOS/Linux. Both unpacked MV3 and normal signed local CRX installation were exercised. No real account material was placed in fixtures or committed output.
 
 ## Essential proof before the application
 
@@ -45,7 +45,7 @@ This run **does not verify Cal Poly SSO/MFA, real session cookies, same-origin C
 
 ## Automated fixture/contract tests
 
-Final source check passed and **53 Node tests passed** (including authentication subtests). The original reference’s **18 Python tests** also passed separately.
+Final source check passed and **56 Node tests passed** (including authentication subtests and three signed-package tests). The original reference’s **18 Python tests** also passed separately.
 
 Use Node 24+ with the project’s pinned test dependency:
 
@@ -68,12 +68,19 @@ The suite covers:
 - Incremental SHA-256 against independent Node crypto; staged writer aborts, wrong lengths, permission loss, local edits after review/during writing, and post-close checking.
 - Final-selection jobs, explicit verify/replace, second-run skipping, unknown revisions, failure reasons, privacy, reports/journals, interrupted recovery, cyclic failed-link repair, and bounded original-file concurrency.
 - Separate-host permission requests/credential omission, download redirect/HTML rejection, and bounded/cancellable same-origin stream logic.
+- Independently verified CRX3 signature, stable signing identity, pinned hash, exact packaged-source equality, and rejection of tampered/malformed packages.
 
 Filesystem mocks model staged writes/commit/abort, not all OS/browser behavior. DOM tests use linkedom; mocked `chrome.scripting` and fake page location/fetch do not prove a live Canvas tab works. The real browser checks above are separate evidence.
 
+## Normal signed package installation
+
+For the requested `{ id; hash; }` installation, the generated Nix resolver/JSON built successfully with the real signed package. An intentionally wrong hash failed as expected. The existing ClearURLs ID still resolves to the original Web Store URL.
+
+The generated external-extension JSON was copied to a fresh project-scoped XDG configuration. Helium installed the package with **Developer mode off**, displayed version 1.0.0 and “Not from Chrome Web Store”, and enabled it without a Canvas `--load-extension` flag. Pinning its action and clicking it opened the production full tab under the new signed ID. The user's normal configuration/profile and `.dotnix` were not changed. See [packaged installation and updates](PACKAGED-INSTALL.md); this verifies installation, not live Cal Poly authentication.
+
 ## Concise manual Helium checklist
 
-- [ ] Load production `extension/` via Developer mode → Load unpacked; pin it; icon opens/focuses a full tab.
+- [ ] Install the signed package through [the Nix instructions](PACKAGED-INSTALL.md), or load development `extension/` via Developer mode → Load unpacked; pin it; icon opens/focuses a full tab.
 - [ ] In your normal desktop/profile, run `proof.html`: real picker, pre-existing read, test write, restart/restore, and renewed permission.
 - [ ] Sign into Canvas with normal Cal Poly MFA; the capability API check succeeds. An IdP-only/expired session must fail clearly; finishing sign-in and reconnecting must work.
 - [ ] Connect; check course name/code/term and Show previous courses. Scan a known course without downloading originals.
@@ -85,6 +92,6 @@ Filesystem mocks model staged writes/commit/abort, not all OS/browser behavior. 
 - [ ] Test a known locked file and a course whose Files endpoint is denied; confirm useful titles and coverage, while permitted module content still scans.
 - [ ] Cancel a test job, revoke folder access, and close/reopen the tab during another test job. Renew, restore selection, and recheck. Existing good copies must remain; empty incomplete placeholders must stay unverified.
 - [ ] Inspect per-course reports for paths, IDs, useful titles, specific reasons, and separate external links. Ensure no credentials/signed auth parameters appear.
-- [ ] Update a source file, Reload the extension card, reopen it, and confirm destination handle restoration/renewal and fresh checks.
+- [ ] For the signed package, build a higher version with the same key, update the Nix pin, apply and restart Helium. For unpacked development, Reload its card after source changes. Reopen and confirm destination handle restoration/renewal and fresh checks.
 
 Do not claim all live account/browser-hosting tests have passed until these normal-profile checks are completed. Folder access is established for the tested installed Helium build; Cal Poly session/CDN behavior remains explicitly pending.

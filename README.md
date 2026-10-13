@@ -2,11 +2,13 @@
 
 A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers accessible Cal Poly Canvas course materials, lets you select them, and saves them in a **different real filesystem folder for each course**. Click the extension icon to open the full interface.
 
-The ready-to-load extension is **[`extension/`](extension/)**. It needs no build step, Python, Playwright, browser debugging flags, server, personal access token, password entry, or cookie export. No materials are uploaded and no services are published.
+For normal Nix-managed installation using an **`{ id; hash; }`** entry, use the signed package and resolver in **[Packaged installation](docs/PACKAGED-INSTALL.md)**. It installs through Helium’s existing external-CRX mechanism with Developer mode off. Your Google-only fetcher needs the documented resolver change for this private package; nothing is published to the Web Store.
+
+The ready-to-load development extension is **[`extension/`](extension/)**. Neither installation needs Python, Playwright, browser debugging flags, a server, personal access token, password entry, or cookie export. No materials are uploaded and no services are published.
 
 **Verification:** real folder picking, reading, writing, handle restoration, permission renewal, and a synthetic download workflow were tested in installed Helium 0.17.2.1 / Chromium 153 on this machine. Live Cal Poly login/MFA, session API access, and actual Canvas/CDN downloads have **not** been verified. See [the evidence and manual checklist](docs/VERIFICATION.md).
 
-## Install in Helium
+## Install unpacked in Helium (development)
 
 1. Keep this project in a permanent local location. The folder to load is:
    `/home/edward/Documents/projects/canvas-scraper/extension`
@@ -159,7 +161,9 @@ In that course’s **Python index and reports** section, click **Import Python i
 
 The Python index has no origin field. Leave **This Python index came from canvas.calpoly.edu** unchecked unless you know its source. Matching imported local checksums still remain unverified in that case; use Verify contents. Confirming the origin allows matching remote version metadata plus the actual local checksum to establish Unchanged. Missing files and local edits are still detected. Imported paths outside the course root, foreign course IDs, malformed entries, and unsafe paths are rejected/ignored. Python HTML was not indexed; those documents remain unverified until you verify or explicitly replace them.
 
-## Update the locally installed extension
+## Update the unpacked extension
+
+For the normal signed package, follow the [package update procedure](docs/PACKAGED-INSTALL.md#package-updates): bump version, package with the same signing key, update the Nix pin/input, apply your configuration, and restart Helium. The following Reload procedure applies to the unpacked development installation.
 
 1. Finish/cancel jobs and close the archive tab.
 2. Update the source in this project’s **same `extension/` directory**. No build/install command is needed for runtime changes.
@@ -168,7 +172,7 @@ The Python index has no origin field. Leave **This Python index came from canvas
 
 Keep `manifest.json`’s public `key` unchanged. It fixes extension ID `fhnmbadoigdiagenjabomlcafagmcifh`, helping preserve extension storage across unpacked path changes. The key is a public identity key; no private signing key is included. Normal Reload retains data; removing the extension, clearing its data, switching profiles, or changing its identity can erase handles/selections. On a path move, load the new folder, check the identity, and reselect folders if necessary. On a different machine/profile, select destinations again.
 
-If you optionally use Git later, update locally with your chosen Git workflow, then run the same Reload procedure. This project has no remote repository, publisher, telemetry, update server, or automatic course download schedule.
+Update source with your chosen Git workflow, then use the procedure for your installation type. These implementation steps do not create/publish a repository or change Git remotes. There is no publisher, telemetry, update server, or automatic course download schedule.
 
 ## Development dependencies and tests
 
@@ -197,7 +201,7 @@ python3 -m unittest -v test_canvas_download.py
 
 For the native fixture workflow, run `npm run test:browser:prepare`. It creates `.local/browser-fixture/`, which substitutes a clearly labelled fixture bootstrap while keeping production source modules. **Use only an isolated test profile; it shares the public extension key.** Load it unpacked there, choose an empty test folder for TEST101, renew permissions, and click Run fixture workflow checks. It checks actual browser UI, directory writes, IndexedDB, locking, aborts, and second-run skipping using synthetic API data. Use a fresh folder for a fresh workflow run. There is no server or Playwright. Xvfb/xdotool/ImageMagick were used only for this machine’s isolated GUI verification and are not extension dependencies.
 
-`.gitignore` excludes node_modules, `.local/` test profiles/evidence/output, reference Python caches, download indexes/reports, course archives, logs, private keys, and browser capture files. Fixtures contain no real coursework, credentials, profiles, or personal destination mappings. Source is suitable for optional local Git version control; no Git repository or remote was created.
+`.gitignore` excludes node_modules, `.local/` signing keys/test profiles/evidence/output, reference Python caches, download indexes/reports, course archives, logs, private keys, and browser capture files. Public signed CRXs in `packages/` are explicitly allowed for version control and Nix input visibility. Fixtures contain no real coursework, credentials, profiles, or personal destination mappings. No Git repository, remote, commit, or publication is created by the implementation steps.
 
 ## Hosting/session troubleshooting
 

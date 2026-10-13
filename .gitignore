@@ -15,5 +15,6 @@ reports/
 # Never commit browser profiles, personal fixtures, or exported course content.
 *.har
 *.crx
+!packages/*.crx
 *.pem
 

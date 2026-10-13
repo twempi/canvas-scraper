@@ -2,6 +2,8 @@
 
 The unpacked extension is also the readable production source. There is no bundler or generated runtime output.
 
+Normal installation also has a signed CRX3 under `packages/`, built from the same runtime assets. `scripts/package-crx.mjs` retains its signing key privately, substitutes the public signing key only in a staging manifest, and verifies the native Helium packer's output through `scripts/crx.mjs`. `nix/fetch-extension.nix` resolves the same `{ id; hash; }` entries against the bundled private package or the existing Web Store URL. `nix/external-extensions.nix` emits Helium's normal external-CRX JSON. See [packaged installation](PACKAGED-INSTALL.md); no signing keys enter Nix or the package.
+
 | File | Responsibility |
 | --- | --- |
 | `extension/manifest.json` | MV3, public identity key, Cal Poly host grant, optional HTTPS file host grants, local CSP. |
