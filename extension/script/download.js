@@ -1,5 +1,5 @@
 import { ORIGIN, ArchiveError, checkAbort, sleep } from './canvas.js';
-import { restricted, fileVersion } from './scan.js';
+import { fileRestricted, fileVersion } from './scan.js';
 export function downloadURL(value) {
   let url;
   try { url = new URL(value); } catch { throw new ArchiveError('Canvas supplied an invalid download URL.'); }
@@ -10,7 +10,7 @@ export async function fileSource(client, courseId, asset, signal) {
   const meta = await client.one(`/api/v1/courses/${courseId}/files/${asset.id}`, signal);
   // Retrieve permitted metadata before reporting a restriction; keep useful names.
   asset.title = meta.filename || meta.display_name || asset.title;
-  if (restricted(meta)) throw new ArchiveError('This file is locked, hidden, or unpublished for your account.', 'restricted');
+  if (fileRestricted(meta)) throw new ArchiveError('This file is locked for your account.', 'restricted');
   if (!meta.url) throw new ArchiveError('Canvas supplied no download URL for this file.');
   const url = downloadURL(meta.url);
   return { url: url.href, filename: meta.filename || meta.display_name || asset.filename || asset.id, remote: fileVersion(meta), contentType: meta['content-type'] || meta.content_type || asset.contentType };

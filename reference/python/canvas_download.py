@@ -291,8 +291,9 @@ class Archive:
 
     def file(self, course, folder, file_id):
         meta = self.canvas.one(f'/api/v1/files/{file_id}')
-        if meta.get('locked_for_user') or meta.get('hidden_for_user'):
-            raise DownloadError('This file is locked or hidden for your account.')
+        # hidden_for_user means link-only, not blocked; Canvas withholds url when locked.
+        if meta.get('locked_for_user'):
+            raise DownloadError('This file is locked for your account.')
         if not meta.get('url'):
             raise DownloadError('Canvas did not provide a download URL.')
         path = folder / f'{file_id}__{safe_name(meta.get("filename") or meta.get("display_name") or file_id)}'

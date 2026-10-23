@@ -7,6 +7,11 @@ export const scanKey = courseId => `scan:${ORIGIN}:${courseId}`;
 export function restricted(meta) {
   return !!(meta.locked_for_user || meta.hidden_for_user || meta.hidden || meta.locked || meta.published === false || meta.content_details?.locked_for_user);
 }
+// Canvas "hidden" files/folders are link-only (e.g. a PDF linked from an assignment),
+// not blocked: Canvas withholds the download URL only when the file is locked for you.
+export function fileRestricted(meta) {
+  return !!meta.locked_for_user;
+}
 export function fileVersion(meta) {
   const updated = meta.updated_at || meta.modified_at || null;
   return { updated_at: updated, size: Number.isSafeInteger(meta.size) && meta.size >= 0 ? meta.size : null };
@@ -71,7 +76,7 @@ export async function scanCourse(client, course, store, { signal, progress = () 
       contentType: meta['content-type'] || meta.content_type || null, folderId: meta.folder_id == null ? null : String(meta.folder_id),
       remote: ref.kind === 'File' ? fileVersion(meta) : null, contexts: [], links: [],
       sourceURL: cleanURL(meta.html_url || (ref.kind === 'File' ? `${ORIGIN}/courses/${id}/files/${ref.id}` : `${ORIGIN}/courses/${id}/${endpoint}/${encodeURIComponent(meta.url || ref.id)}`)),
-      unavailable: issue || (restricted(meta) ? 'Locked, hidden, or unpublished for this account.' : null)
+      unavailable: issue || ((ref.kind === 'File' ? fileRestricted : restricted)(meta) ? 'Locked, hidden, or unpublished for this account.' : null)
     };
     if (ref.kind === 'File' && !asset.unavailable && !meta.url) asset.unavailable = 'Canvas did not provide a download URL.';
     catalog.assets[key] = asset; rawCache.set(rawKey, asset); assetCount++;
@@ -146,7 +151,7 @@ export async function scanCourse(client, course, store, { signal, progress = () 
   } catch (error) { coverage('Course Files (modules still scanned)', error); }
   try {
     for await (const folder of client.all(`${prefix}/folders?per_page=100`, signal)) {
-      folders.set(String(folder.id), { id: String(folder.id), name: folder.name || folder.id, parentId: folder.parent_folder_id == null ? null : String(folder.parent_folder_id), restricted: restricted(folder) });
+      folders.set(String(folder.id), { id: String(folder.id), name: folder.name || folder.id, parentId: folder.parent_folder_id == null ? null : String(folder.parent_folder_id), restricted: fileRestricted(folder) });
     }
   } catch (error) { coverage('Course file subfolders (supplemental files use a flat layout)', error); }
   function folderPath(asset) {

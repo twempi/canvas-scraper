@@ -114,3 +114,15 @@ test('original downloads use at most two simultaneous streams',async()=>{
   const review=await prepareReview(s.client,s.catalog,s.root,s.selected,s.store);const report=(await runJob(s.client,review,s.store)).report;
   assert.equal(report.counts.downloaded,3);assert.ok(max<=2);assert.equal(active,0);
 });
+test('link-only (hidden) file attached to assignment instructions downloads',async()=>{
+  const fake=fixtures(),store=new MemoryStore(),root=new Directory();
+  const hw=fake.file(40,'HW7.pdf',{ hidden:true, hidden_for_user:true });
+  fake.routes.set('/api/v1/courses/1/files/40',hw);
+  fake.routes.get('/api/v1/courses/1/assignments/9').description+='<a href="/courses/1/files/40?wrap=1">HW7.pdf</a>';
+  const client=new CanvasClient({fetcher:fake.fetcher,chromeAPI:null,delay:0,wait:async()=>{}});await client.connect();
+  const catalog=await scanCourse(client,course,store);
+  assert.equal(catalog.assets['File:40'].unavailable,null);
+  const placement=catalog.placements.find(p=>p.assetKey==='File:40'&&p.context==='module:2');
+  const journal=await runJob(client,await prepareReview(client,catalog,root,new Set([placement.key]),store),store);
+  assert.equal(journal.report.counts.downloaded,1);assert.equal(await read(root,placement.path),'lecture');
+});
