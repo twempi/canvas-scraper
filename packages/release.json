@@ -1,9 +1,9 @@
 {
   "id": "pihjpoobjgmlfacpemennkjibihkmebm",
-  "version": "1.0.0",
-  "hash": "sha256-ls3ryJGNDUauN/7Gemk1ChsTa1B4Zk2QJiMqyEv2an4=",
-  "file": "pihjpoobjgmlfacpemennkjibihkmebm-1.0.0.crx",
-  "sourceHash": "f1039d40892bf6e78d665365e0519856228036b6100ffdabe1b1a9a6db73fcb0",
+  "version": "1.0.1",
+  "hash": "sha256-oAbysLGgdIjsQbiskKo8TKfqsyy4XSbWGBCcaxdo2Ho=",
+  "file": "pihjpoobjgmlfacpemennkjibihkmebm-1.0.1.crx",
+  "sourceHash": "892498470377bde600dce00eda7369b5261f3ba57ea61abb70f367edd8e17e21",
   "unpackedId": "fhnmbadoigdiagenjabomlcafagmcifh",
   "format": "CRX3"
 }

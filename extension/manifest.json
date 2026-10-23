@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Canvas Local Archive",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Select Canvas materials and save them in a real folder for each course.",
   "permissions": [
     "scripting"
