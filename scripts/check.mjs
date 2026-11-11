@@ -4,8 +4,8 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 const root = path.resolve('extension');
 const manifest = JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
-if (manifest.manifest_version !== 3 || manifest.host_permissions.join() !== 'https://canvas.calpoly.edu/*' || manifest.action.default_popup) throw new Error('Manifest scope or full-tab action is invalid');
-if (manifest.permissions.some(p=>!['scripting'].includes(p))) throw new Error('Unexpected permissions');
+if (manifest.manifest_version !== 3 || manifest.host_permissions.join() !== 'https://canvas.calpoly.edu/*' || manifest.action.default_popup || manifest.side_panel?.default_path !== 'index.html') throw new Error('Manifest scope or side panel action is invalid');
+if (manifest.permissions.some(p=>!['scripting','sidePanel','nativeMessaging'].includes(p))) throw new Error('Unexpected permissions');
 let count = 0;
 function walk(directory) {
   for (const entry of fs.readdirSync(directory,{ withFileTypes: true })) {

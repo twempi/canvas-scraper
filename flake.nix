@@ -5,5 +5,6 @@
     lib.fetchExtension = import ./nix/fetch-extension.nix;
     lib.externalExtensions = import ./nix/external-extensions.nix;
     lib.extension = import ./packages/entry.nix;
+    lib.pdfHost = import ./nix/pdf-host.nix;
   };
 }

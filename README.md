@@ -1,6 +1,6 @@
 # Canvas Local Archive
 
-A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers accessible Cal Poly Canvas course materials, lets you select them, and saves them in a **different real filesystem folder for each course**. Click the extension icon to open the full interface.
+A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers accessible Cal Poly Canvas course materials, lets you select them, and saves them in a **different real filesystem folder for each course**. Click the extension icon to open it in the browser's side panel; it connects to Canvas automatically when opened. Word/PowerPoint files are saved as PDFs (see [PDF conversion](#pdf-conversion)).
 
 For normal Nix-managed installation using an **`{ id; hash; }`** entry, use the signed package and resolver in **[Packaged installation](docs/PACKAGED-INSTALL.md)**. It installs through Helium’s existing external-CRX mechanism with Developer mode off. Your Google-only fetcher needs the documented resolver change for this private package; nothing is published to the Web Store.
 
@@ -16,10 +16,25 @@ The ready-to-load development extension is **[`extension/`](extension/)**. Neith
 2. Open **`helium://extensions`**. `chrome://extensions` also works and redirects to Helium’s extension manager.
 3. Enable **Developer mode** in the upper right.
 4. Click **Load unpacked**. Select the **extension folder containing `manifest.json`**, not the project root or `reference/python/`.
-5. Open the toolbar’s **Extensions** menu (puzzle-piece icon), find **Canvas Local Archive**, and click its pin icon. Click the pinned extension icon to open its full tab. Subsequent clicks focus an existing archive tab.
+5. Open the toolbar’s **Extensions** menu (puzzle-piece icon), find **Canvas Local Archive**, and click its pin icon. Click the pinned extension icon to open the archive in the side panel. Keep the panel open while a download runs.
 6. Leave access to `https://canvas.calpoly.edu/*` enabled in the extension’s Details/Site access settings. The only required extension API permission is `scripting`, used for read-only session requests through an open Canvas tab when needed.
 
 There is no automatic installer or Nix activation. The existing `.dotnix` Helium extensions were inspected at your request: they use unpacked MV3 directories with local scripts. This project follows that arrangement and **does not change `.dotnix`, browser policies, or Nix configuration**. Your declaratively loaded extensions can coexist with this manually loaded one.
+
+## PDF conversion
+
+Word and PowerPoint files (`.doc .docx .odt .rtf .ppt .pptx .pps .ppsx .odp`) are converted locally with LibreOffice and saved **only as PDF** (`<id>__<name>.pdf`). The extension sends each file to a native messaging host (`native/canvas_pdf_host.py`), which runs `soffice --headless --convert-to pdf` in a temporary directory and returns the PDF. Nothing leaves your machine. Spreadsheets and other files are saved unchanged.
+
+Install the host with Home Manager by merging its config file next to your existing Helium `configFiles`:
+
+```nix
+xdg.configFile = extensions.webStore.configFiles
+  // (inputs.canvas-local-archive.lib.pdfHost { inherit pkgs; }).configFiles;
+```
+
+This writes `~/.config/net.imput.helium/NativeMessagingHosts/edu.calpoly.canvas_archive_pdf.json`, pointing to a wrapper with LibreOffice and Python from nixpkgs. Restart Helium afterwards. Without the host, Office files fail with an install hint and everything else downloads normally. Test the host with `python3 -I native/test_canvas_pdf_host.py`.
+
+Converted PDFs can't use **Verify contents**, because LibreOffice output isn't byte-reproducible. Use **Replace this file** instead. Folders archived before this change keep their `.pptx`/`.docx` originals; the matching PDFs show as new.
 
 ## Verify the browser before real downloads
 

@@ -2,7 +2,8 @@ import { ArchiveError, ORIGIN, checkAbort, friendly } from './canvas.js';
 import { bodyKey, restricted, fileVersion } from './scan.js';
 import { bodyHTML, offlineDocument, replacementsFor } from './html.js';
 import { hashText, SHA256 } from './hash.js';
-import { fileName } from './names.js';
+import { fileName, convertible } from './names.js';
+import { toPDF } from './convert.js';
 import { loadIndex, checkPlacement, diskFile, saveEntry, writeStream, writeJSON, sameVersion, classify } from './filesystem.js';
 import { fileSource, openFileStream } from './download.js';
 export const runKey = courseId => `latest-run:${ORIGIN}:${courseId}`;
@@ -79,6 +80,8 @@ export async function verifyExisting(client, review, row, store, signal) {
   let stream, expectedSize;
   if (asset.kind === 'File') {
     const source = await fileSource(client, catalog.course.id, asset, signal);
+    // LibreOffice output is not byte-reproducible, so a PDF can't be compared with a fresh conversion.
+    if (convertible(source.filename)) throw new ArchiveError('Converted PDFs cannot be byte-compared with Canvas. Choose “Replace this file” to download and convert it again.');
     if (JSON.stringify(source.remote) !== JSON.stringify(row.remote)) throw new ArchiveError('Remote revision changed after review. Recheck first.');
     stream = await openFileStream(client, source, signal); expectedSize = source.remote.size;
   } else {
@@ -150,13 +153,15 @@ export async function runJob(client, review, store, { signal, progress = () => {
         const source = await fileSource(client, courseId, asset, signal);
         if (JSON.stringify(source.remote) !== JSON.stringify(row.remote)) throw new ArchiveError('Canvas file changed after review. Recheck before retrying.');
         if (fileName({ ...asset, filename: source.filename }) !== row.path.split('/').at(-1)) throw new ArchiveError('Canvas filename changed after review. Rescan before retrying.');
-        const stream = await openFileStream(client, source, signal);
-        let saved;
-        try { saved = await writeStream(root, row.path, stream, { signal, expectedSize: source.remote.size, expectedDisk: row.disk, progress: bytes => progress({ report, title: asset.title, bytes, total: review.rows.length }) }); }
-        finally { if (!stream.locked) await stream.cancel().catch(() => {}); }
+        let stream = await openFileStream(client, source, signal), saved;
+        const pdf = convertible(source.filename);
+        try {
+          if (pdf) stream = await toPDF(stream, source.filename, signal);
+          saved = await writeStream(root, row.path, stream, { signal, expectedSize: pdf ? null : source.remote.size, expectedDisk: row.disk, progress: bytes => progress({ report, title: asset.title, bytes, total: review.rows.length }) });
+        } finally { if (!stream.locked) await stream.cancel().catch(() => {}); }
         // Serialize index commits when two file writers finish together.
         await commit(row, asset, source.remote, saved);
-        available.add(row.key); record(row, 'downloaded', 'Original bytes saved and local SHA-256 verified.', { bytes: saved.size, sha256: saved.sha256 });
+        available.add(row.key); record(row, 'downloaded', pdf ? 'Converted to PDF with LibreOffice and local SHA-256 verified.' : 'Original bytes saved and local SHA-256 verified.', { bytes: saved.size, sha256: saved.sha256 });
       } catch (error) { if (error.code === 'auth') client.verified = false; record(row, signal?.aborted ? 'cancelled' : 'failed', friendly(error)); }
     }
   }

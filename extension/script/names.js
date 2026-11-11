@@ -20,8 +20,11 @@ export function component(value) {
   return `${result}~${hash.toString(16).padStart(8, '0')}`;
 }
 export const moduleFolder = module => `${String(Number.isFinite(Number(module.position)) ? Math.trunc(Number(module.position)) : 0).padStart(2, '0')}__${module.id}__${component(module.name || module.id)}`;
+// Office documents are saved as PDFs converted locally by LibreOffice (convert.js).
+const CONVERTIBLE = /\.(?:docx?|odt|rtf|pptx?|ppsx?|odp)$/i;
+export const convertible = filename => CONVERTIBLE.test(safeName(filename || ''));
 export const fileName = asset => {
-  const original = safeName(asset.filename || asset.id);
+  const original = safeName(asset.filename || asset.id).replace(CONVERTIBLE, '.pdf');
   const extension = /\.[a-z0-9]{1,10}$/i.exec(original)?.[0] || '';
   const name = new TextEncoder().encode(original).length > 210 && extension ? component(original.slice(0,-extension.length)) + extension : component(original);
   return `${asset.id}__${name}`;

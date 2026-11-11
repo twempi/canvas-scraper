@@ -6,6 +6,7 @@ import { escapeHTML as e } from './html.js';
 import { prepareReview, summary, runJob, runKey, verifyExisting, preserveState } from './jobs.js';
 import { requiredOrigins, grantOrigins, downloadURL } from './download.js';
 import { loadIndex, pythonEntries, writeJSON, INDEX_PATH, diskFile } from './filesystem.js';
+import { convertible } from './names.js';
 export const formatBytes = bytes => bytes == null ? 'Size unknown' : bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KiB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MiB` : `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
 export function scopeKeys(catalog, scope) {
   return (catalog?.placements || []).filter(p => scope === 'course' || scope === 'modules' && p.context.startsWith('module:') || scope === 'assignments' && (p.context === 'assignments' || catalog.assets[p.assetKey].kind === 'Assignment') || scope === 'files' && p.context === 'files' || p.context === scope).map(p => p.key);
@@ -44,7 +45,7 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
     const rows = placements.slice(0, limit).map(p => {
       const asset = catalog.assets[p.assetKey], status = p.unavailable || asset.unavailable ? 'Unavailable' : checkState(id,p.key);
       const module = catalog.modules.find(m => p.context === `module:${m.id}`);
-      return `<div class="material-row"><label class="material-label">${checkbox(id,p.key,null,`Select ${asset.title} in ${module?.name || p.context}`)}<span><span class="material-title">${e(asset.title)}</span><span class="muted small">${e(asset.kind === 'File' ? 'Original file' : asset.kind + ' · offline HTML')} · Canvas ${e(asset.id)}${scope === 'assignments' && module ? ' · ' + e(module.name) : ''}</span></span></label><span class="size">${formatBytes(asset.size)}</span><span class="badge ${status === 'Unavailable' ? 'warn' : ''}" title="${e(state.checks.get(id)?.get(p.key)?.reason || p.unavailable || asset.unavailable || 'Recheck to inspect the actual selected folder.')}">${e(status)}</span><a href="${e(asset.sourceURL)}" target="_blank" rel="noreferrer" aria-label="${e('Open ' + asset.title + ' in Canvas')}">↗</a></div>`;
+      return `<div class="material-row"><label class="material-label">${checkbox(id,p.key,null,`Select ${asset.title} in ${module?.name || p.context}`)}<span><span class="material-title">${e(asset.title)}</span><span class="muted small">${e(asset.kind === 'File' ? (convertible(asset.filename) ? 'Saved as PDF' : 'Original file') :asset.kind + ' · offline HTML')} · Canvas ${e(asset.id)}${scope === 'assignments' && module ? ' · ' + e(module.name) : ''}</span></span></label><span class="size">${formatBytes(asset.size)}</span><span class="badge ${status === 'Unavailable' ? 'warn' : ''}" title="${e(state.checks.get(id)?.get(p.key)?.reason || p.unavailable || asset.unavailable || 'Recheck to inspect the actual selected folder.')}">${e(status)}</span><a href="${e(asset.sourceURL)}" target="_blank" rel="noreferrer" aria-label="${e('Open ' + asset.title + ' in Canvas')}">↗</a></div>`;
     }).join('');
     return rows + (placements.length > limit ? `<button data-action="more" data-course="${e(id)}" data-scope="${e(scope)}">Show next ${Math.min(100,placements.length-limit)} of ${placements.length} items</button>` : '') + (!placements.length ? '<p class="muted">No materials discovered in this section.</p>' : '');
   }
@@ -174,7 +175,7 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
       if (!state.reviews.length) throw new ArchiveError('Recheck your selection before starting.');
       if (!navigator.locks) throw new ArchiveError('This browser lacks the job-lock API. Capability verification is required.');
       await navigator.locks.request('canvas-local-archive-job',{ ifAvailable: true },async lock=>{
-        if (!lock) throw new ArchiveError('Another extension tab is processing a job. Finish or cancel it first.');
+        if (!lock) throw new ArchiveError('Another archive panel is processing a job. Finish or cancel it first.');
         $('#progress-panel').hidden = false; $('#job-results').textContent = '';
         for (const review of state.reviews) {
           const id = review.catalog.course.id;
@@ -210,7 +211,7 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
     if (input.dataset.item || input.dataset.scope && input.type === 'checkbox') {
       if (input.dataset.item) selection(id).set(input.dataset.item,input.checked);
       else selection(id).group(scopeKeys(state.catalogs.get(id),input.dataset.scope),input.checked);
-      invalidate(); updateSelection(); persistSelection(id).catch(()=>say('Selection could not be saved locally. Keep this tab open.'));
+      invalidate(); updateSelection(); persistSelection(id).catch(()=>say('Selection could not be saved locally. Keep this panel open.'));
     }
     if (input.dataset.label) {
       const destination = state.destinations.get(input.dataset.label); destination.label = input.value.slice(0,500);
