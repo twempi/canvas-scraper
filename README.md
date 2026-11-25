@@ -8,7 +8,9 @@ A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers a
 2. Tap **Set up** on a course and pick its folder. That turns on **auto-sync** and downloads everything available right away.
 3. Afterwards, every auto-sync course is synced when the panel opens and then every 30 minutes while it stays open (**Advanced → ⚙ → Sync schedule** sets 15/30/60/120 minutes or "only when opened"). **Sync now** runs it on demand.
 
-A sync rescans the course, includes all available materials, including new uploads, and downloads only files that are missing or changed on Canvas. Files you edited, or that already existed without a checksum, are **never overwritten**; they show as "kept as-is". Untick items under **Materials** to exclude them from that course's sync; new uploads are still included. Turning auto-sync off makes the course manual: only ticked items, only when you click **Sync now**.
+**Only files are downloaded.** Pages and assignment, discussion and quiz descriptions stay on Canvas. They are still scanned, so a file attached to an assignment (for example a homework PDF) is found and saved in the assignment's module folder, or under `_Assignments/` if the assignment isn't in a module. In the **Files** list it is labelled "From <assignment>". Web pages saved by older versions are left on disk untouched.
+
+A sync rescans the course, includes all available files, including new uploads, and downloads only files that are missing or changed on Canvas. Files you edited, or that already existed without a checksum, are **never overwritten**; they show as "kept as-is". Untick items under **Files** to exclude them from that course's sync; new uploads are still included. Turning auto-sync off makes the course manual: only ticked items, only when you click **Sync now**.
 
 The status card at the top always shows what is happening (syncing, done, sign-in needed, folder access needed) along with the button that fixes it. Browsers ask for folder access again after a restart; click **Allow access** when prompted. Writing only works while the side panel is open; nothing runs in the background.
 

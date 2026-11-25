@@ -2,18 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { parseHTML } from 'linkedom';
-import { mount, scopeKeys, selectableKeys, syncKey, relativeTime } from '../extension/script/ui.js';
+import { mount, scopeKeys, selectableKeys, syncKey, relativeTime, assignmentFiles } from '../extension/script/ui.js';
 import { CanvasClient, ORIGIN } from '../extension/script/canvas.js';
 import { scanCourse, listCourses, coursePrevious, scanKey } from '../extension/script/scan.js';
 import { destinationKey } from '../extension/script/store.js';
 import { fixtures, MemoryStore, course, response } from './fixtures.js';
 import { Directory, put, read } from './fake-fs.js';
 const html=await fs.readFile(new URL('../extension/index.html',import.meta.url),'utf8');
-async function setup(picker,{now}={}) {
+async function setup(picker,{now,before}={}) {
   const {document,window}=parseHTML(html);globalThis.document=document;globalThis.window=window;
   const fake=fixtures(),store=new MemoryStore(),client=new CanvasClient({fetcher:fake.fetcher,chromeAPI:null,delay:0,wait:async()=>{}});await client.connect();
   const catalog=await scanCourse(client,course,store);await store.set('courses',[course,{...course,id:'2',name:'Same code, other term',term:{name:'Previous',end_at:'2020-01-01'}}]);
-  await store.set(scanKey('1'),catalog);
+  await store.set(scanKey('1'),catalog);await before?.(store);
   const ui=await mount({client,store,picker:picker||(()=>Promise.resolve(new Directory())),chromeAPI:null,...(now?{now}:{})});
   return {...ui,document,window,catalog,fake};
 }
@@ -30,6 +30,8 @@ async function setUpCourse(root=new Directory('TEST101')) {
   return {...ui,root};
 }
 const addUpload=(fake,id,name)=>{ const file=fake.file(id,name); fake.routes.get('/api/v1/courses/1/files').push(file); fake.routes.set(`/api/v1/courses/1/files/${id}`,file); };
+// Every file path under a fake directory, excluding the archive's own index/reports.
+function paths(directory,prefix=''){ return [...directory.children].flatMap(([name,child])=>name==='.canvas-archive'?[]:child.kind==='directory'?paths(child,`${prefix}${name}/`):[`${prefix}${name}`]); }
 test('actual checkbox handlers support course/module descendants and individual deselection',async()=>{
   const ui=await setup(),s=ui.state.selections.get('1');ui.openCourse('1');
   change(ui.document,ui.window,'input[data-course="1"][data-scope="course"]',true);assert.equal(s.keys.size,selectableKeys(ui.catalog).length);
@@ -37,7 +39,8 @@ test('actual checkbox handlers support course/module descendants and individual 
   ui.state.expanded.add('1:modules');ui.state.expanded.add('1:module:2');ui.render();
   change(ui.document,ui.window,'input[data-item="File:7@module:2"]',false);
   assert.equal(ui.document.querySelector('input[data-course="1"][data-scope="course"]').indeterminate,true);
-  assert.equal(ui.document.querySelector('input[data-course="1"][data-scope="module:2"]').indeterminate,true);
+  // Lecture notes is module 2's only downloadable file (the rest are pages or locked), so the module is now unticked.
+  const module2=ui.document.querySelector('input[data-course="1"][data-scope="module:2"]');assert.equal(module2.checked,false);assert.equal(module2.indeterminate,false);
   assert.ok(!s.keys.has('File:7@module:2'));assert.ok(s.keys.has('File:7@module:3'));
   assert.equal(scopeKeys(ui.catalog,'files').filter(k=>k.startsWith('File:7')).length,0);
 });
@@ -137,4 +140,28 @@ test('basic mode hides power tools and advanced mode reveals them; the choice pe
   ui.document.querySelector('[data-action="review-course"]').click();await settled(ui);
   assert.equal(ui.state.view.name,'review');assert.ok(ui.document.querySelectorAll('.review-item').length>0);
   ui.document.querySelector('button[data-mode="basic"]').click();assert.equal(ui.state.view.name,'course','leaving advanced mode exits advanced-only views');
+});
+test('only files are downloaded: web pages and assignment descriptions never are, but their attached files are',async()=>{
+  const ui=await setUpCourse(),catalog=ui.state.catalogs.get('1');
+  for(const key of scopeKeys(catalog,'course'))assert.equal(catalog.assets[catalog.placements.find(p=>p.key===key).assetKey].kind,'File',key);
+  const written=paths(ui.root);
+  assert.ok(written.length>0);assert.deepEqual(written.filter(p=>p.endsWith('.html')),[],'no web pages written');
+  // The Worksheet assignment links Lecture notes.pdf; the non-module assignment links Lab data.csv.
+  assert.ok(written.includes(catalog.placements.find(p=>p.key==='File:7@module:2').path));
+  assert.ok(written.includes(catalog.placements.find(p=>p.key==='File:8@assignments').path));
+  assert.deepEqual(assignmentFiles(catalog).get('File:7').titles,['Worksheet']);
+  assert.ok(ui.state.runs.get('1').report.items.every(i=>i.canvasType==='File'),'report lists only files');
+});
+test('the Assignments section lists files attached to assignments, labelled with the assignment',async()=>{
+  const ui=await setup();ui.openCourse('1');ui.state.expanded.add('1:assignments');ui.render();
+  const section=ui.document.querySelector('details[data-scope="assignments"]');
+  const titles=[...section.querySelectorAll('.item-title')].map(n=>n.textContent);
+  assert.deepEqual(titles.sort(),['Lab data.csv','Lecture notes.pdf']);
+  assert.ok(section.textContent.includes('From Worksheet'));assert.ok(section.textContent.includes('From Independent assignment'));
+  ui.state.expanded.add('1:modules');ui.state.expanded.add('1:module:2');ui.render();
+  assert.ok(![...ui.document.querySelectorAll('.tree .item-title')].some(n=>['Getting started','Worksheet','Quiz description'].includes(n.textContent)),'pages are not listed');
+});
+test('selections saved by older versions drop web pages',async()=>{
+  const ui=await setup(null,{before:store=>store.set(`selection:${ORIGIN}:1`,['Page:123@module:2','Assignment:9@module:2','File:7@module:2'])});
+  assert.deepEqual([...ui.state.selections.get('1').keys],['File:7@module:2']);
 });

@@ -8,8 +8,30 @@ import { requiredOrigins, grantOrigins, downloadURL } from './download.js';
 import { loadIndex, pythonEntries, writeJSON, INDEX_PATH, diskFile } from './filesystem.js';
 import { convertible } from './names.js';
 export const formatBytes = bytes => bytes == null ? 'Size unknown' : bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KiB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MiB` : `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
+// Only files are downloaded. Pages and assignment/discussion/quiz descriptions stay on Canvas;
+// they are still scanned so the files they link to (e.g. a homework PDF) are found and placed beside them.
+const attachments = new WeakMap();
+// File asset key → titles of the assignments that link to it, and the contexts those assignments live in.
+export function assignmentFiles(catalog) {
+  if (!catalog) return new Map();
+  if (attachments.has(catalog)) return attachments.get(catalog);
+  const map = new Map();
+  for (const asset of Object.values(catalog.assets)) {
+    if (asset.kind !== 'Assignment') continue;
+    for (const link of asset.links || []) {
+      if (link.ref?.kind !== 'File' || !catalog.assets[link.ref.key]) continue;
+      const entry = map.get(link.ref.key) || { titles: [], contexts: new Set() };
+      if (!entry.titles.includes(asset.title)) entry.titles.push(asset.title);
+      asset.contexts.forEach(context => entry.contexts.add(context));
+      map.set(link.ref.key, entry);
+    }
+  }
+  attachments.set(catalog, map);
+  return map;
+}
 export function scopeKeys(catalog, scope) {
-  return (catalog?.placements || []).filter(p => scope === 'course' || scope === 'modules' && p.context.startsWith('module:') || scope === 'assignments' && (p.context === 'assignments' || catalog.assets[p.assetKey].kind === 'Assignment') || scope === 'files' && p.context === 'files' || p.context === scope).map(p => p.key);
+  const attached = assignmentFiles(catalog);
+  return (catalog?.placements || []).filter(p => catalog.assets[p.assetKey]?.kind === 'File' && (scope === 'course' || scope === 'modules' && p.context.startsWith('module:') || scope === 'assignments' && (p.context === 'assignments' || !!attached.get(p.assetKey)?.contexts.has(p.context)) || scope === 'files' && p.context === 'files' || p.context === scope)).map(p => p.key);
 }
 // Placements that can actually be downloaded; locked/hidden items are never auto-selected.
 export function selectableKeys(catalog, scope = 'course') {
@@ -388,12 +410,12 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
   }
   function materialRows(id, scope) {
     const catalog = state.catalogs.get(id), keys = new Set(scopeKeys(catalog, scope)), limitKey = `${id}:${scope}`, limit = state.limits.get(limitKey) || 100;
-    const placements = catalog.placements.filter(p => keys.has(p.key));
+    const placements = catalog.placements.filter(p => keys.has(p.key)), attached = assignmentFiles(catalog);
     const rows = placements.slice(0, limit).map(p => {
       const asset = catalog.assets[p.assetKey], unavailable = p.unavailable || asset.unavailable, status = unavailable ? 'Unavailable' : checkState(id, p.key);
       const module = catalog.modules.find(m => p.context === `module:${m.id}`);
-      const kind = asset.kind === 'File' ? (convertible(asset.filename) ? 'Saved as PDF' : 'File') : `${asset.kind} · saved as web page`;
-      const meta = [kind, advanced() && asset.kind === 'File' ? formatBytes(asset.size) : '', advanced() ? `Canvas ${asset.id}` : '', scope === 'assignments' && module ? module.name : ''].filter(Boolean).join(' · ');
+      const from = attached.get(asset.key)?.titles;
+      const meta = [from ? `From ${from.slice(0, 2).join(', ')}${from.length > 2 ? ` +${from.length - 2}` : ''}` : '', convertible(asset.filename) ? 'Saved as PDF' : '', advanced() ? formatBytes(asset.size) : '', advanced() ? `Canvas ${asset.id}` : '', scope === 'assignments' && module ? module.name : ''].filter(Boolean).join(' · ');
       const badge = status && (advanced() || unavailable) ? `<span class="badge ${STATE_TONE[status] || ''}" title="${e(state.checks.get(id)?.get(p.key)?.reason || unavailable || '')}">${e(STATE_LABEL[status] || status)}</span>` : '';
       return `<div class="item${unavailable ? ' is-unavailable' : ''}"><label class="item-main">${checkbox(id, p.key, null, `Include ${asset.title}${module ? ` in ${module.name}` : ''}`, !!unavailable)}<span class="item-text"><span class="item-title">${e(asset.title)}</span><span class="item-meta">${e(meta)}</span></span></label>${badge}<a class="item-link" href="${e(asset.sourceURL)}" target="_blank" rel="noreferrer" title="Open in Canvas" aria-label="${e(`Open ${asset.title} in Canvas`)}">↗</a></div>`;
     }).join('');
@@ -406,16 +428,18 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
   }
   function sectionBody(id, scope) {
     const catalog = state.catalogs.get(id), selectable = selectableKeys(catalog, scope);
-    let content = scope === 'modules' ? catalog.modules.map(m => group(id, `module:${m.id}`, `${String(m.position).padStart(2, '0')} · ${m.name}`)).join('') : materialRows(id, scope);
-    if (scope === 'modules' && !catalog.modules.length) content = '<p class="muted small">No accessible modules.</p>';
+    // Modules that only hold pages/assignments without files have nothing to download, so they're hidden.
+    const modules = catalog.modules.filter(m => scopeKeys(catalog, `module:${m.id}`).length);
+    let content = scope === 'modules' ? modules.map(m => group(id, `module:${m.id}`, `${String(m.position).padStart(2, '0')} · ${m.name}`)).join('') : materialRows(id, scope);
+    if (scope === 'modules' && !modules.length) content = '<p class="muted small">No files in modules.</p>';
     return `<div class="section-actions"><label class="check-label">${checkbox(id, null, scope, `Include all ${selectable.length} items in this section`, !selectable.length)}Include all</label></div>` + content;
   }
   function materialsCard(id) {
     const catalog = state.catalogs.get(id), rec = record(id);
-    if (!catalog) return `<section class="card"><h3>Materials</h3><p class="muted small">${state.destinations.has(id) ? 'Materials appear here after the first sync.' : 'Choose a folder to see and sync this course’s materials.'}</p>${advanced() ? `<div class="actions"><button class="small" data-action="scan" data-course="${e(id)}">Scan without downloading</button></div>` : ''}</section>`;
+    if (!catalog) return `<section class="card"><h3>Files</h3><p class="muted small">${state.destinations.has(id) ? 'Files appear here after the first sync.' : 'Choose a folder to see and sync this course’s files.'}</p>${advanced() ? `<div class="actions"><button class="small" data-action="scan" data-course="${e(id)}">Scan without downloading</button></div>` : ''}</section>`;
     const all = selectableKeys(catalog), chosen = selection(id).state(all).count;
     return `<section class="card materials">
-      <div class="card-row"><div><h3>Materials</h3><p class="muted small" id="included-count">${chosen} of ${all.length} included${rec.auto ? ' · new uploads are added automatically' : ''}</p></div>
+      <div class="card-row"><div><h3>Files</h3><p class="muted small" id="included-count">${chosen} of ${all.length} included${rec.auto ? ' · new uploads are added automatically' : ''}</p></div>
         <label class="check-label">${checkbox(id, null, 'course', 'Include all materials', !all.length)}All</label></div>
       ${advanced() ? `<div class="materials-toolbar"><span>Scanned ${e(relativeTime(catalog.scannedAt, now()))}</span><button class="small" data-action="scan" data-course="${e(id)}">Rescan</button>${state.destinations.has(id) ? `<button class="small" data-action="check" data-course="${e(id)}">Check folder</button><button class="small" data-action="review-course" data-course="${e(id)}">Review before downloading</button>` : ''}</div>` : ''}
       <div class="tree">${group(id, 'modules', 'Modules')}${group(id, 'assignments', 'Assignments')}${group(id, 'files', 'Other course files')}</div>
@@ -630,12 +654,13 @@ export async function mount({ client = new CanvasClient(), store = new Store(), 
       const review = await prepareReview(client, catalog, destination.handle, keys, store, { signal, progress: p => setStatus('busy', 'Checking folder', `${p.checked} of ${keys.size} · ${p.title}`, { progress: { value: p.checked, max: keys.size } }) });
       state.checks.set(id, new Map(review.rows.map(r => [r.key, r])));
       const totals = summary(review.rows);
-      setStatus('ok', 'Folder checked', `${totals.unchanged} up to date · ${totals.new} missing · ${totals.updates} updates · ${totals.conflicts} kept as-is. Expand Materials to see each file.`);
+      setStatus('ok', 'Folder checked', `${totals.unchanged} up to date · ${totals.new} missing · ${totals.updates} updates · ${totals.conflicts} kept as-is. Expand Files to see each one.`);
     });
     else if (action === 'review-course') perform('Checking selected items…', signal => reviewSelection(signal, [id]));
     else if (action === 'retry') perform('Restoring failed items…', async signal => {
       const run = state.runs.get(id);
       selection(id).keys = new Set(run.report.items.filter(i => ['failed', 'cancelled'].includes(i.outcome)).map(i => i.selectionKey));
+      selection(id).reconcile(new Set(scopeKeys(state.catalogs.get(id), 'course'))); // Older runs may list web pages.
       await persistSelection(id); await reviewSelection(signal, [id]);
     });
     else if (action === 'recover') perform('Restoring last selection…', async signal => {
