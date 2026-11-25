@@ -1,5 +1,5 @@
 # Canvas Local Archive — private signed package
 {
   id = "pihjpoobjgmlfacpemennkjibihkmebm";
-  hash = "sha256-y6dcEKtMqa2H0+Ggr9KRzX52PERkFxa7aj7WW4Ur1rI=";
+  hash = "sha256-G8n2bn8omUu0IO/KNkIPsqk3bV5q/KB5jnI0sLNncJA=";
 }
