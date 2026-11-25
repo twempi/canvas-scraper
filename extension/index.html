@@ -1,17 +1,86 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Canvas Local Archive</title><link rel="stylesheet" href="style.css"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Canvas Local Archive</title><link rel="stylesheet" href="style.css"><script src="script/theme-boot.js"></script></head>
 <body>
-<a class="skip-link" href="#courses">Skip to courses</a>
-<header class="topbar"><div><span class="eyebrow">CAL POLY · LOCAL MATERIALS</span><h1>Canvas Local Archive</h1></div><div class="connection"><span id="connection" class="badge">Not connected</span><button id="connect">Connect / Refresh</button><a class="button" href="https://canvas.calpoly.edu/" target="_blank" rel="noreferrer">Open Canvas / Sign in ↗</a></div></header>
-<main>
-<div class="intro"><div><h2>Your courses, in your folders.</h2><p>Scan a course, choose its folder, then select what to keep offline.</p></div><a href="proof.html" class="quiet-link" target="_blank">Check browser capabilities ↗</a></div>
-<div id="capability" class="notice" hidden></div>
-<div class="toolbar"><label class="search">Search courses<input id="search" type="search" placeholder="Course name, code, or term" autocomplete="off"></label><label class="check-label"><input id="previous" type="checkbox">Show previous courses</label><span id="selected-count">0 items selected</span><button id="clear">Clear selection</button><button id="review" class="primary">Review selected items</button></div>
-<div class="status-line"><p id="status" role="status" aria-live="polite">Connect to Canvas to list your courses. Finish Cal Poly login and MFA in your normal browser tab.</p><button id="cancel" hidden>Cancel operation</button></div>
-<section id="review-panel" class="panel" hidden aria-labelledby="review-title"><div class="panel-heading"><div><span class="eyebrow">BEFORE YOU DOWNLOAD</span><h2 id="review-title" tabindex="-1">Review selected materials</h2></div><button id="close-review">Close review</button></div><p id="review-summary"></p><p class="muted">Unverified files and local edits are preserved by default. Verify compares content without overwriting. Replace explicitly permits overwriting the displayed file.</p><div class="table-scroll"><table><thead><tr><th>Material and destination</th><th>Disk status</th><th>Action</th></tr></thead><tbody id="review-rows"></tbody></table></div><div class="review-footer"><p>Keep this panel open until the job finishes. You can cancel safely and recheck later.</p><button id="start" class="primary">Download reviewed selection</button></div></section>
-<section id="progress-panel" class="panel" hidden aria-labelledby="progress-title"><h2 id="progress-title">Download progress</h2><progress id="job-progress" value="0" max="1"></progress><p id="job-counts" role="status" aria-live="polite"></p><div id="job-results"></div><button id="retry">Retry failed / cancelled items</button></section>
-<section id="courses" aria-label="Courses" tabindex="-1"></section>
-<details class="panel advanced"><summary>Download host access and local data</summary><p>Some Canvas files use a separate hosting origin. Start requests access only to origins supplied by the selected files’ Canvas metadata. If a redirect requires an additional host, grant its HTTPS origin here after checking the Canvas file’s hosting address.</p><label>Additional file hosting origin<input id="host-origin" type="url" placeholder="https://files.example.edu"></label><button id="grant-host">Allow this download host</button><p>Course folders and checksums stay on this device. No analytics, publishing, or external archiving. <a href="help.html" target="_blank">Installation, updates, reports, and recovery ↗</a></p></details>
-</main><dialog id="report-dialog"><div class="panel-heading"><h2>Latest course report</h2><button id="close-report">Close</button></div><pre id="report-content"></pre></dialog>
-<footer>Canvas Local Archive · v1.0.0 · Personal offline archive</footer><script type="module" src="script/main.js"></script>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="appbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">C</span>
+    <div class="brand-text"><h1>Canvas Archive</h1><button id="connect" class="conn" data-state="idle" title="Reconnect to Canvas"><span class="dot" aria-hidden="true"></span><span id="connection">Not connected</span></button></div>
+  </div>
+  <div class="appbar-actions">
+    <div class="segmented" role="group" aria-label="Interface mode"><button data-mode="basic" aria-pressed="true">Basic</button><button data-mode="advanced" aria-pressed="false">Advanced</button></div>
+    <button id="open-tools" class="icon-button adv-only" data-action="tools" data-nav aria-label="Tools and settings" title="Tools and settings">⚙</button>
+  </div>
+</header>
+<div id="status-card" class="status-card" data-tone="info">
+  <span class="status-icon" aria-hidden="true"></span>
+  <div class="status-body" role="status" aria-live="polite">
+    <div id="status"><strong id="status-title">Starting…</strong> <span id="status-detail"></span></div>
+    <progress id="status-progress" hidden></progress>
+  </div>
+  <div class="status-actions"><span id="status-action"></span><button id="cancel" class="small" hidden>Cancel</button></div>
+</div>
+<div id="capability" class="banner" hidden></div>
+<main id="main" tabindex="-1">
+  <section id="home-view" class="view" aria-label="Courses">
+    <div id="sync-summary"></div>
+    <div class="search-row">
+      <input id="search" type="search" placeholder="Search courses" aria-label="Search courses by name, code, or term" autocomplete="off">
+      <label class="switch-label"><span class="switch"><input id="previous" type="checkbox"><span class="track" aria-hidden="true"></span></span>Past</label>
+    </div>
+    <div id="course-list"></div>
+  </section>
+  <section id="course-view" class="view" hidden><div id="course-detail"></div></section>
+  <section id="review-view" class="view" hidden aria-labelledby="review-title">
+    <div class="view-header"><button class="back" data-action="back" data-nav>← Back</button></div>
+    <h2 id="review-title" class="view-title" tabindex="-1">Review before downloading</h2>
+    <div id="review-summary" class="stats"></div>
+    <p class="hint">Files you edited, or that were already in the folder, are kept unless you choose <strong>Replace</strong>. <strong>Verify</strong> compares them with Canvas without overwriting anything.</p>
+    <div id="review-rows" class="review-list"></div>
+    <div class="sticky-footer"><button id="start" class="primary block">Download</button></div>
+  </section>
+  <section id="tools-view" class="view" hidden aria-labelledby="tools-title">
+    <div class="view-header"><button class="back" data-action="back" data-nav>← Back</button></div>
+    <h2 id="tools-title" class="view-title" tabindex="-1">Tools &amp; settings</h2>
+    <section class="card">
+      <h3>Sync schedule</h3>
+      <label class="field">Check for new materials
+        <select id="sync-interval">
+          <option value="0">Only when the panel opens</option>
+          <option value="15">On open, then every 15 minutes</option>
+          <option value="30">On open, then every 30 minutes</option>
+          <option value="60">On open, then every hour</option>
+          <option value="120">On open, then every 2 hours</option>
+        </select>
+      </label>
+      <p class="muted small">The browser only lets the extension write to your folders while this side panel is open.</p>
+    </section>
+    <section class="card">
+      <h3>Canvas connection</h3>
+      <p id="connection-detail" class="muted"></p>
+      <div class="actions"><button data-action="connect">Reconnect</button><a class="button" href="https://canvas.calpoly.edu/" target="_blank" rel="noreferrer">Open Canvas ↗</a></div>
+    </section>
+    <section class="card">
+      <h3>Download hosts</h3>
+      <p class="muted small">Some Canvas files are served from a separate host. Sync asks for the hosts named in Canvas file metadata. If a redirect needs another HTTPS host, allow it here.</p>
+      <label class="field">Hosting origin<input id="host-origin" type="url" placeholder="https://files.example.edu"></label>
+      <div class="actions"><button id="grant-host">Allow this host</button></div>
+    </section>
+    <section class="card">
+      <h3>Activity</h3>
+      <ol id="activity" class="activity"></ol>
+    </section>
+    <section class="card">
+      <h3>Theme</h3>
+      <p id="theme-detail" class="muted small"></p>
+    </section>
+    <section class="card">
+      <h3>Help</h3>
+      <p><a href="help.html" target="_blank">How the archive works ↗</a><br><a href="proof.html" target="_blank">Check browser capabilities ↗</a></p>
+      <p class="muted small">Canvas Local Archive <span id="version"></span>. Folders, checksums and reports stay on this device.</p>
+    </section>
+  </section>
+</main>
+<dialog id="report-dialog"><div class="dialog-head"><h2>Latest course report</h2><button id="close-report">Close</button></div><pre id="report-content"></pre></dialog>
+<script type="module" src="script/main.js"></script>
 </body></html>

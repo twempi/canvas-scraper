@@ -1,6 +1,34 @@
 # Canvas Local Archive
 
-A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers accessible Cal Poly Canvas course materials, lets you select them, and saves them in a **different real filesystem folder for each course**. Click the extension icon to open it in the browser's side panel; it connects to Canvas automatically when opened. Word/PowerPoint files are saved as PDFs (see [PDF conversion](#pdf-conversion)).
+A local Chromium Manifest V3 extension for Helium on NixOS/Linux. It discovers accessible Cal Poly Canvas course materials and keeps them synced into a **different real filesystem folder for each course**. Click the extension icon to open it in the browser's side panel; it connects to Canvas and syncs your auto-sync courses automatically when opened. Word/PowerPoint files are saved as PDFs (see [PDF conversion](#pdf-conversion)).
+
+## Everyday use
+
+1. Sign in to Canvas in Helium, then open the side panel. It connects by itself. If you're signed out, it reconnects as soon as a Canvas tab finishes loading.
+2. Tap **Set up** on a course and pick its folder. That turns on **auto-sync** and downloads everything available right away.
+3. Afterwards, every auto-sync course is synced when the panel opens and then every 30 minutes while it stays open (**Advanced → ⚙ → Sync schedule** sets 15/30/60/120 minutes or "only when opened"). **Sync now** runs it on demand.
+
+A sync rescans the course, includes all available materials, including new uploads, and downloads only files that are missing or changed on Canvas. Files you edited, or that already existed without a checksum, are **never overwritten**; they show as "kept as-is". Untick items under **Materials** to exclude them from that course's sync; new uploads are still included. Turning auto-sync off makes the course manual: only ticked items, only when you click **Sync now**.
+
+The status card at the top always shows what is happening (syncing, done, sign-in needed, folder access needed) along with the button that fixes it. Browsers ask for folder access again after a restart; click **Allow access** when prompted. Writing only works while the side panel is open; nothing runs in the background.
+
+**Basic** mode shows courses, folders, sync status and recent downloads. **Advanced** mode (top-right toggle) adds per-file disk status, Rescan, Check folder, **Review before downloading** with Verify/Replace, reports, Python index import, scan limitations, download-host access, and an activity log.
+
+## Stylix theme
+
+The panel uses your Stylix colours and fonts, delivered through the same Nix-installed native helper that does PDF conversion. The signed CRX stays unchanged; the palette is read at runtime. Pass Stylix to the helper:
+
+```nix
+xdg.configFile = extensions.webStore.configFiles
+  // (inputs.canvas-local-archive.lib.pdfHost {
+    inherit pkgs;
+    colors = config.lib.stylix.colors;
+    fonts = { sansSerif = config.stylix.fonts.sansSerif.name; monospace = config.stylix.fonts.monospace.name; };
+    polarity = config.stylix.polarity;
+  }).configFiles;
+```
+
+Every theme-switcher specialisation rebuilds the helper with its own palette, so after `theme-switch` the panel picks up the new scheme the next time it opens (no browser restart). The base16 slots map to UI roles: `base00`/`01`/`02` backgrounds, `base05` text (falling back to `base06`/`07` when a port puts grey in `base05`), `base04` muted text, `base0D` accent, `base0B`/`0A`/`08` success/warning/error. Colours that would be hard to read on the panel are nudged toward the text colour until they reach 4.5:1 contrast. Without the helper, or without `colors`, the built-in light/dark palette follows the browser's colour scheme.
 
 For normal Nix-managed installation using an **`{ id; hash; }`** entry, use the signed package and resolver in **[Packaged installation](docs/PACKAGED-INSTALL.md)**. It installs through Helium’s existing external-CRX mechanism with Developer mode off. Your Google-only fetcher needs the documented resolver change for this private package; nothing is published to the Web Store.
 
@@ -187,7 +215,7 @@ For the normal signed package, follow the [package update procedure](docs/PACKAG
 
 Keep `manifest.json`’s public `key` unchanged. It fixes extension ID `fhnmbadoigdiagenjabomlcafagmcifh`, helping preserve extension storage across unpacked path changes. The key is a public identity key; no private signing key is included. Normal Reload retains data; removing the extension, clearing its data, switching profiles, or changing its identity can erase handles/selections. On a path move, load the new folder, check the identity, and reselect folders if necessary. On a different machine/profile, select destinations again.
 
-Update source with your chosen Git workflow, then use the procedure for your installation type. These implementation steps do not create/publish a repository or change Git remotes. There is no publisher, telemetry, update server, or automatic course download schedule.
+Update source with your chosen Git workflow, then use the procedure for your installation type. These implementation steps do not create/publish a repository or change Git remotes. There is no publisher, telemetry, or update server. Auto-sync runs only while the side panel is open.
 
 ## Development dependencies and tests
 

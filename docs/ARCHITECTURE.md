@@ -17,7 +17,7 @@ Normal installation also has a signed CRX3 under `packages/`, built from the sam
 | `script/hash.js` | Small incremental SHA-256 implementation, tested against Node’s independent crypto implementation. |
 | `script/download.js` | Permitted file metadata, specific optional host grants, streaming original bytes, bounded Canvas-tab stream fallback. |
 | `script/jobs.js` | Reviewed selection only, metadata rechecks, two file workers, serialized index commits, sequential HTML, failed-link reconciliation, journal/report/recovery. |
-| `script/selection.js`, `script/ui.js` | Shared placement selection with mixed checkboxes, full-tab controls, per-course destinations, review policies and reports. |
+| `script/selection.js`, `script/ui.js` | Shared placement selection with mixed checkboxes; side-panel views (course list → course detail, review, tools), Basic/Advanced modes, and the auto-sync engine (rescan → include all available minus exclusions → `prepareReview` → `runJob` for missing/changed items only; preserved files are never replaced). Sync runs on panel open and on a timer while the panel is open; per-course settings live under `sync:<origin>:<courseId>`. |
 | `proof.html`, `script/proof.js` | Visible minimal session and native filesystem capability check. |
 | `tests/`, `scripts/` | Synthetic fixtures, contract tests, source checks, and an ignored native-browser fixture build. |
 

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Chrome native messaging host: converts one Office document to PDF with LibreOffice.
+"""Chrome native messaging host for Canvas Local Archive.
 
-Protocol (one conversion per connection):
+PDF conversion (one per connection) with LibreOffice:
   in:  {"name": "Slides.pptx"}, {"data": "<base64>"}..., {"end": true}
   out: {"data": "<base64>"}..., {"done": true}  or  {"error": "..."}
+
+Theme (the Stylix palette Nix wrote to $CANVAS_ARCHIVE_THEME, or null):
+  in:  {"theme": true}
+  out: {"theme": {"colors": {"base00": "191724", ...}, "fonts": {...}, "polarity": "dark"} | null}
 """
 import base64
 import json
+import os
 import pathlib
 import re
 import struct
@@ -17,6 +22,7 @@ import tempfile
 ALLOWED = re.compile(r"\.(docx?|odt|rtf|pptx?|ppsx?|odp)$", re.I)
 MAX_INPUT = 1 << 30
 OUT_CHUNK = 700_000  # base64 stays under Chrome's 1 MiB host-to-browser message limit
+THEME_KEYS = [f"base0{digit}" for digit in "0123456789ABCDEF"]
 
 
 def read():
@@ -33,8 +39,23 @@ def send(message):
     sys.stdout.buffer.flush()
 
 
-def convert(work):
-    match = ALLOWED.search(str(read().get("name", "")))
+def theme():
+    path = os.environ.get("CANVAS_ARCHIVE_THEME")
+    if not path:
+        return None
+    try:
+        data = json.loads(pathlib.Path(path).read_text())
+        colors = {key: str(data["colors"][key]).lstrip("#") for key in THEME_KEYS}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not all(re.fullmatch(r"[0-9a-fA-F]{6}", value) for value in colors.values()):
+        return None
+    fonts = {key: value for key, value in (data.get("fonts") or {}).items() if isinstance(value, str)}
+    return {"colors": colors, "fonts": fonts, "polarity": data.get("polarity")}
+
+
+def convert(work, first):
+    match = ALLOWED.search(str(first.get("name", "")))
     if not match:
         raise ValueError("unsupported file type")
     source = work / ("input" + match.group(0).lower())
@@ -65,7 +86,11 @@ def convert(work):
 def main():
     with tempfile.TemporaryDirectory(prefix="canvas-pdf-") as work:
         try:
-            convert(pathlib.Path(work))
+            first = read()
+            if first.get("theme"):
+                send({"theme": theme()})
+            else:
+                convert(pathlib.Path(work), first)
         except EOFError:
             pass
         except FileNotFoundError:
